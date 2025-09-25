@@ -17,7 +17,7 @@ const resultFolder = path.join(__dirname, 'results');
 if (!fs.existsSync(uploadFolder)) fs.mkdirSync(uploadFolder);
 if (!fs.existsSync(resultFolder)) fs.mkdirSync(resultFolder);
 
-// Multer
+// Multer for file upload
 const upload = multer({ dest: uploadFolder });
 
 // Serve HTML
@@ -34,20 +34,33 @@ app.post('/upload', upload.single('file'), (req, res) => {
       .pipe(csv({ headers: false }))
       .on('data', (row) => {
           const email = row['0'].trim();
-          results.push({ email, status: 'Pending' });
+          results.push({ email });
       })
       .on('end', () => {
           validateEmails(0, results, res);
       });
 });
 
+// Function to check catch-all
+function checkCatchAll(domain, callback) {
+    // Send fake email to domain
+    const fakeEmail = 'thisisnotavalidemail12345@' + domain;
+    emailExistence.check(fakeEmail, (err, exists) => {
+        callback(exists ? 'Yes' : 'No');
+    });
+}
+
 // Deep validation recursive
 function validateEmails(index, results, res) {
     if (index >= results.length) {
         const filename = `results_${Date.now()}.csv`;
         const outputPath = path.join(resultFolder, filename);
-        const output = results.map(r => `${r.email},${r.status}`).join('\n');
-        fs.writeFileSync(outputPath, output);
+
+        const header = 'email,syntax,disposable_email,role_email,mx_record,smtp,catch_all';
+        const output = results.map(r =>
+            `${r.email},${r.syntax},${r.disposable_email},${r.role_email},${r.mx_record},${r.smtp},${r.catch_all}`
+        );
+        fs.writeFileSync(outputPath, [header, ...output].join('\n'));
 
         return res.send(`
             <h3>Validation Complete!</h3>
@@ -58,36 +71,35 @@ function validateEmails(index, results, res) {
     const email = results[index].email;
 
     // Step 1: Syntax
-    if (!validator.isEmail(email)) {
-        results[index].status = 'Invalid Syntax';
-        return validateEmails(index + 1, results, res);
-    }
+    results[index].syntax = validator.isEmail(email) ? 'Valid' : 'Invalid';
 
     // Step 2: Disposable
-    if (isDisposable(email)) {
-        results[index].status = 'Disposable Email';
-        return validateEmails(index + 1, results, res);
-    }
+    results[index].disposable_email = isDisposable(email) ? 'Yes' : 'No';
 
-    // Step 3: Role email (optional)
+    // Step 3: Role email
     const roleEmails = ['admin@', 'info@', 'support@', 'sales@'];
-    if (roleEmails.some(role => email.toLowerCase().startsWith(role))) {
-        results[index].status = 'Role Email';
-        return validateEmails(index + 1, results, res);
-    }
+    results[index].role_email = roleEmails.some(role => email.toLowerCase().startsWith(role)) ? 'Yes' : 'No';
 
     // Step 4: MX check
     const domain = email.split('@')[1];
     dns.resolveMx(domain, (err, addresses) => {
-        if (err || !addresses || addresses.length === 0) {
-            results[index].status = 'Invalid Domain';
+        results[index].mx_record = (err || !addresses || addresses.length === 0) ? 'No' : 'Yes';
+
+        if (results[index].mx_record === 'No') {
+            results[index].smtp = 'Invalid';
+            results[index].catch_all = 'No';
             return validateEmails(index + 1, results, res);
         }
 
         // Step 5: SMTP check
         emailExistence.check(email, (error, exists) => {
-            results[index].status = exists ? 'Valid' : 'Invalid SMTP';
-            validateEmails(index + 1, results, res);
+            results[index].smtp = exists ? 'Valid' : 'Invalid';
+
+            // Step 6: Catch-All detection
+            checkCatchAll(domain, (catchAll) => {
+                results[index].catch_all = catchAll;
+                validateEmails(index + 1, results, res);
+            });
         });
     });
 }
