@@ -15,11 +15,10 @@
 node validator.js
 
 # example input csv
-email,status
-test@gmail.com,Valid
-fake@invalid.com,Invalid SMTP
-info@domain.com,Role Email
-temp@mailinator.com,Disposable Email
-abc@nonexistent.com,Invalid Domain
+no header only email
+
+# test port 25 is on or not?
+telnet smtp.gmail.com 25
+
 
 
