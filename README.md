@@ -20,7 +20,7 @@ no header only email
 # test port 25 is on or not?
 telnet smtp.gmail.com 25
 
-Features of the Deep Email Validator
+# deep Features
 1️⃣ CSV Upload
 
 Upload CSV files with no headers.
