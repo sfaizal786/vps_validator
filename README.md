@@ -2,8 +2,8 @@
 
 # Features
 1) Full deep validation: Syntax + Disposable + Role + MX + SMTP
-2) CSV upload & download 
-3)Easy to run on VPS (like DartNode VPS-1)
+2) CSV upload & download
+3) Easy to run on VPS (like DartNode VPS-1)
 4) Minimal dependencies
 
    
