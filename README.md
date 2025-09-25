@@ -1,1 +1,1 @@
-# chat_app
+# vps_validator
